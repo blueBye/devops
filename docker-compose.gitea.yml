@@ -1,0 +1,83 @@
+services:
+  gitea-db:
+    image: ${GITEA_POSTGRES_IMAGE_TAG}
+    volumes:
+      - gitea-postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${GITEA_DB_NAME}
+      POSTGRES_USER: ${GITEA_DB_USER}
+      POSTGRES_PASSWORD: ${GITEA_DB_PASSWORD}
+    networks:
+      - gitea-db-network  # shared with gitea
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "${GITEA_DB_NAME}", "-U", "${GITEA_DB_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  gitea:
+    image: ${GITEA_IMAGE_TAG}
+    volumes:
+      - gitea-data:/${GITEA_DATA_PATH}
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - 3000:3000
+    environment:
+      # database
+      GITEA_DATABASE_HOST: gitea-db
+      GITEA_DATABASE_NAME: ${GITEA_DB_NAME}
+      GITEA_DATABASE_USERNAME: ${GITEA_DB_USER}
+      GITEA_DATABASE_PASSWORD: ${GITEA_DB_PASSWORD}
+      # admin user
+      GITEA_ADMIN_USER: ${GITEA_ADMIN_USERNAME}
+      GITEA_ADMIN_PASSWORD: ${GITEA_ADMIN_PASSWORD}
+      GITEA_ADMIN_EMAIL: ${GITEA_ADMIN_EMAIL}
+      # general configs
+      ALLOW_EMPTY_PASSWORD: no
+      GITEA_RUN_MODE: prod
+      GITEA_DOMAIN: ${GITEA_HOSTNAME}
+      GITEA_ROOT_URL: ${GITEA_URL}
+      GITEA_HTTP_PORT: 3000
+      # ssh settings
+      GITEA_SSH_DOMAIN: ${GITEA_HOSTNAME}
+      GITEA_SSH_PORT: ${GITEA_SHELL_SSH_PORT}
+      GITEA_SSH_LISTEN_PORT: 22
+    networks:
+      - gitea-db-network  # shared with gitea database
+      - gitea-network  # shared with gitea runners
+      - traefik-network  # shared with traefik
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      # gitea router
+      - "traefik.http.routers.gitea.rule=Host(`${GITEA_HOSTNAME}`)"
+      - "traefik.http.routers.gitea.service=gitea"
+      - "traefik.http.routers.gitea.entrypoints=websecure"
+      - "traefik.http.routers.gitea.middlewares=compresstraefik"
+      - "traefik.http.routers.gitea.tls=true"
+      - "traefik.http.routers.gitea.tls.certresolver=cloudflare"
+      - "traefik.tcp.routers.gitea-ssh.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.gitea-ssh.service=gitea-ssh"
+      - "traefik.tcp.routers.gitea-ssh.entrypoints=ssh"
+      # gitea service
+      - "traefik.http.services.gitea.loadbalancer.server.port=3000"
+      - "traefik.http.services.gitea.loadbalancer.passhostheader=true"
+      - "traefik.tcp.services.gitea-ssh.loadbalancer.server.port=22"
+      # gitea middleware
+      - "traefik.http.middlewares.compresstraefik.compress=true"
+      # docker network
+      - "traefik.docker.network=traefik-network"
+    restart: unless-stopped
+    depends_on:
+      gitea-db:
+        condition: service_healthy
+      traefik:
+        condition: service_healthy

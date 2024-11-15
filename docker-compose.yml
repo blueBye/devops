@@ -1,0 +1,43 @@
+networks:
+  gitea-network:
+  gitea-db-network:
+  traefik-network:
+    driver: bridge
+
+volumes:
+  gitea-data:
+  gitea-postgres:
+  gitea-postgres-backup:
+  gitea-data-backups:
+  gitea-database-backups:
+  traefik-certificates:
+
+services:
+  traefik:
+    extends:
+      file: docker-compose.traefik.yml
+      service: traefik
+
+  gitea:
+    extends:
+      file: docker-compose.gitea.yml
+      service: gitea
+
+  gitea-db:
+    extends:
+      file: docker-compose.gitea.yml
+      service: gitea-db
+
+  # gitea-runner:
+  #   image: ${GITEA_RUNNER_IMAGE}
+  #   environment:
+  #     CONFIG_FILE: /config.yaml
+  #     GITEA_INSTANCE_URL: "${GITEA_INSTANCE_URL}"
+  #     GITEA_RUNNER_REGISTRATION_TOKEN: "${GITEA_RUNNER_REGISTRATION_TOKEN}"
+  #     GITEA_RUNNER_NAME: "${GITEA_RUNNER_NAME}"
+  #   volumes:
+  #     - ./gitea-runner/config.yaml:/config.yaml
+  #     - ./gitea-runner/data:/data
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   networks:
+  #     - gitea
