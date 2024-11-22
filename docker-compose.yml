@@ -1,8 +1,10 @@
 networks:
   gitea-network:
+    external: true
   gitea-db-network:
+    external: true
   traefik-network:
-    driver: bridge
+    external: true
 
 volumes:
   gitea-data:
