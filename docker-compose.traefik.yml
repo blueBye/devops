@@ -12,8 +12,8 @@ services:
       - traefik-network
     environment:
       # cloudflare resolver variables
-      - CF_API_EMAIL=${CF_API_EMAIL}
-      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+      CF_API_EMAIL: ${CF_API_EMAIL}
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
     command:
       # global settings
       - "--global.checkNewVersion=true"
@@ -53,7 +53,6 @@ services:
       - "--certificatesresolvers.resolvers=1.1.1.1:53,1.0.0.1:53"
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=traefik-network"
       # dashboard router
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
@@ -62,8 +61,9 @@ services:
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=cloudflare"
       - "traefik.http.routers.dashboard.tls.domains=cloudflare"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].main=${HOST_NAME}"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.{HOST_NAME}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=${HOSTNAME}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.{HOSTNAME}"
+      # http to https redirect
       - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.http-catchall.entrypoints=web"
       - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
@@ -83,5 +83,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
