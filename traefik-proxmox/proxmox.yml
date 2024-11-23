@@ -1,0 +1,30 @@
+http:
+  routers:
+    proxmox-rtr:
+      rule: "Host(`proxmox.navidlabs.ir`)"
+      entryPoints:
+        - websecure
+      service: proxmox-svc
+      tls:
+        certResolver: cloudflare
+    
+    keycloak-rtr:
+      rule: "Host(`keycloak.navidlabs.ir`)"
+      entryPoints:
+        - websecure
+      service: keycloak-svc
+      tls:
+        certResolver: cloudflare
+    
+  services:
+    proxmox-svc:
+      loadBalancer:
+        servers:
+          - url: "https://192.168.1.4:8006"
+    keycloak-svc:
+      loadBalancer:
+        servers:
+          - url: "http://192.168.1.6:8080"
+
+  serversTransports:
+    insecureSkipVerify: true
