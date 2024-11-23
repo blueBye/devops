@@ -1,0 +1,14 @@
+services:
+  gitea-runner:
+    image: ${GITEA_RUNNER_IMAGE}
+    environment:
+      CONFIG_FILE: /config.yaml
+      GITEA_INSTANCE_URL: "${GITEA_URL}"
+      GITEA_RUNNER_REGISTRATION_TOKEN: "${GITEA_RUNNER_REGISTRATION_TOKEN}"
+      GITEA_RUNNER_NAME: "${GITEA_RUNNER_NAME}"
+    volumes:
+      - ./gitea-runner/config.yaml:/config.yaml
+      - ./gitea-runner/data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    # adding network as host to simulate a user adding their own runner
+    network_mode: host
