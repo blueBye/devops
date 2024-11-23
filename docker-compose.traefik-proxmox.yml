@@ -1,0 +1,86 @@
+services:
+  traefik:
+    image: ${TRAEFIK_IMAGE_TAG}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - 80:80  # web
+      - 443:443  # websecure
+    # network_mode: bridge  # access to local VMs
+    environment:
+      # cloudflare resolver variables
+      CF_API_EMAIL: ${CF_API_EMAIL}
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}
+    command:
+      # global settings
+      - "--global.checkNewVersion=true"
+      - "--global.sendAnonymousUsage=false"
+      # api and dashboard
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+      # metrics
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+      # logs
+      - "--log.level=${TRAEFIK_LOG_LEVEL}"
+      - "--log.format=${TRAEFIK_LOG_FORMAT}"
+      # access logs
+      - "--accesslog=true"
+      - "--accesslog.addinternals"
+      - "--accesslog.format=${TRAEFIK_ACCESS_LOG_FORMAT}"
+      - "--accesslog.bufferingsize=100"
+      # docker provider
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.watch=true"
+      - "--providers.docker.exposedByDefault=false"
+      # file provider
+      - "--providers.file.watch=true"
+      - "--providers.file.directory=/tmp/traefik"
+      - "--providers.file.filename=proxmox.yml"
+      # healthcheck entrypoint
+      - "--ping=true"
+      - "--ping.entrypoint=ping"
+      - "--entryPoints.ping.address=:8082"
+      # web and websecure entrypoints
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      # cloudflare certificate resolver
+      - "--certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}"
+      - "--certificatesresolvers.cloudflare.acme.storage=/etc/traefik/acme/acme.json"
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge=true"
+      - "--certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.resolvers=1.1.1.1:53,1.0.0.1:53"
+    labels:
+      - "traefik.enable=true"
+      # dashboard router
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=authtraefik"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=cloudflare"
+      - "traefik.http.routers.dashboard.tls.domains=cloudflare"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=${HOSTNAME}"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].sans=*.{HOSTNAME}"
+      # http to https redirect
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      # dashboard service
+      - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
+      - "traefik.http.services.dashboard.loadbalancer.passhostheader=true"
+      # middlewares
+      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH}"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro  # sync time with the host
+      - /var/run/docker.sock:/var/run/docker.sock:ro # allows Traefik to interact with Docker
+      - traefik-certificates-proxmox:/etc/traefik/acme
+      - ./traefik-proxmox/proxmox.yml:/tmp/traefik/proxmox.yml:ro
+    healthcheck:
+      test: ["CMD", "wget", "http://localhost:8082/ping","--spider"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

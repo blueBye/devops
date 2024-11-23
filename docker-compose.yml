@@ -13,26 +13,30 @@ volumes:
   gitea-data-backups:
   gitea-database-backups:
   traefik-certificates:
+  traefik-certificates-proxmox:
 
 services:
-  traefik:
-    extends:
-      file: docker-compose.traefik.yml
-      service: traefik
+  # traefik:
+  #   extends:
+  #     file: docker-compose.traefik.yml
+  #     service: traefik
 
-  gitea:
-    extends:
-      file: docker-compose.gitea.yml
-      service: gitea
+  # gitea:
+  #   extends:
+  #     file: docker-compose.gitea.yml
+  #     service: gitea
 
-  gitea-db:
-    extends:
-      file: docker-compose.gitea.yml
-      service: gitea-db
+  # gitea-db:
+  #   extends:
+  #     file: docker-compose.gitea.yml
+  #     service: gitea-db
 
-  gitea-runner:
-    extends:
-      file: docker-compose.gitea-runner.yml
-      service: gitea-runner
+  # gitea-runner:
+  #   extends:
+  #     file: docker-compose.gitea-runner.yml
+  #     service: gitea-runner
 
-  
+  traefik-proxmox:
+    extends:
+      file: docker-compose.traefik-proxmox.yml
+      service: traefik  
