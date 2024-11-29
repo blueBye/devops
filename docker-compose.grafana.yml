@@ -1,0 +1,79 @@
+services:
+  grafana-db:
+    image: ${GRAFANA_DB_IMAGE_TAG}
+    volumes:
+      - grafana-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${GRAFANA_DB_NAME}
+      POSTGRES_USER: ${GRAFANA_DB_USER}
+      POSTGRES_PASSWORD: ${GRAFANA_DB_PASSWORD}
+    networks:
+      - grafana-db-network
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "${GRAFANA_DB_NAME}", "-U", "${GRAFANA_DB_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  grafana:
+    image: ${GRAFANA_IMAGE_TAG}
+    volumes:
+      - grafana-data:${GRAFANA_DATA_PATH}
+    environment:
+      GF_DATABASE_TYPE: ${GRAFANA_DB_TYPE}
+      GF_DATABASE_HOST: grafana-db
+      GF_DATABASE_NAME: ${GRAFANA_DB_NAME}
+      GF_DATABASE_USER: ${GRAFANA_DB_USER}
+      GF_DATABASE_PASSWORD: ${GRAFANA_DB_PASSWORD}
+      GF_SERVER_DOMAIN: ${GRAFANA_HOSTNAME}
+      GF_SERVER_ROOT_URL: ${GRAFANA_URL}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USERNAME}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: ${GRAFANA_AUTH_ANONYMOUS_ENABLED}
+      GF_AUTH_ANONYMOUS_DISABLE_LOGIN_FORM: ${GRAFANA_AUTH_ANONYMOUS_DISABLE_LOGIN_FORM}
+      GF_USERS_ALLOW_SIGN_UP: ${GRAFANA_USERS_ALLOW_SIGN_UP}
+      GF_PATHS_PROVISIONING: ${GRAFANA_PROVISIONING_PATH}
+      GF_PATHS_CONFIG: ${GRAFANA_CONFIG_PATH}
+      GF_PATHS_DATA: ${GRAFANA_DATA_PATH}
+      GF_PATHS_LOGS: ${GRAFANA_LOGS_PATH}
+      GF_PATHS_PLUGINS: ${GRAFANA_PLUGINS_PATH}
+      GF_INSTALL_PLUGINS: ${GRAFANA_PLUGINS_INSTALL}
+      GF_SMTP_ENABLED: 'true'
+      GF_SMTP_HOST: ${GRAFANA_SMTP_ADDRESS}:${GRAFANA_SMTP_PORT}
+      GF_SMTP_USER: ${GRAFANA_SMTP_USER_NAME}
+      GF_SMTP_PASSWORD: ${GRAFANA_SMTP_PASSWORD}
+      GF_SMTP_FROM_NAME: ${GRAFANA_SMTP_NAME_FROM}
+      GF_SMTP_FROM_ADDRESS: ${GRAFANA_EMAIL_FROM}
+    networks:
+      - grafana-db-network
+      - traefik-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      # grafana router
+      - "traefik.http.routers.grafana.rule=Host(`${GRAFANA_HOSTNAME}`)"
+      - "traefik.http.routers.grafana.service=grafana"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.tls.certresolver=cloudflare"
+      - "traefik.http.routers.grafana.middlewares=compresstraefik"
+      # grafana service
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.http.services.grafana.loadbalancer.passhostheader=true"
+      # grafana middleware
+      - "traefik.http.middlewares.compresstraefik.compress=true"
+      # docker network
+      - "traefik.docker.network=traefik-network"
+    restart: unless-stopped
+    depends_on:
+      grafana-db:
+        condition: service_healthy
+      traefik:
+        condition: service_healthy

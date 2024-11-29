@@ -7,6 +7,8 @@ networks:
     external: true
   keycloak-db-network:
     external: true
+  grafana-db-network:
+    external: true
   consul-network:
     driver: bridge
 
@@ -19,12 +21,24 @@ volumes:
   traefik-certificates:
   traefik-certificates-proxmox:
   keycloak-db:
+  grafana-data:
+  grafana-db:
 
 services:
   traefik:
     extends:
       file: docker-compose.traefik.yml
       service: traefik
+
+  grafana:
+    extends:
+      file: docker-compose.grafana.yml
+      service: grafana
+
+  grafana-db:
+    extends:
+      file: docker-compose.grafana.yml
+      service: grafana-db
 
   keycloak:
     extends:
