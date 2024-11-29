@@ -5,6 +5,10 @@ networks:
     external: true
   traefik-network:
     external: true
+  keycloak-db-network:
+    external: true
+  consul-network:
+    driver: bridge
 
 volumes:
   gitea-data:
@@ -14,12 +18,23 @@ volumes:
   gitea-database-backups:
   traefik-certificates:
   traefik-certificates-proxmox:
+  keycloak-db:
 
 services:
-  # traefik:
-  #   extends:
-  #     file: docker-compose.traefik.yml
-  #     service: traefik
+  traefik:
+    extends:
+      file: docker-compose.traefik.yml
+      service: traefik
+
+  keycloak:
+    extends:
+      file: docker-compose.keycloak.yml
+      service: keycloak
+
+  keycloak-db:
+    extends:
+      file: docker-compose.keycloak.yml
+      service: keycloak-db
 
   # gitea:
   #   extends:
@@ -36,7 +51,19 @@ services:
   #     file: docker-compose.gitea-runner.yml
   #     service: gitea-runner
 
-  traefik-proxmox:
-    extends:
-      file: docker-compose.traefik-proxmox.yml
-      service: traefik  
+  # traefik-proxmox:
+  #   extends:
+  #     file: docker-compose.traefik-proxmox.yml
+  #     service: traefik  
+
+  # consul:
+  #   image: bitnami/consul:latest
+  #   networks:
+  #     - consul-network
+  #   ports:
+  #     - '8300:8300'
+  #     - '8301:8301'
+  #     - '8301:8301/udp'
+  #     - '8500:8500'
+  #     - '8600:8600'
+  #     - '8600:8600/udp'

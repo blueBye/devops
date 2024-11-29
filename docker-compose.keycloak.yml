@@ -1,0 +1,86 @@
+services:
+  keycloak-db:
+    image: postgres:17.2-alpine3.20
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${KEYCLOAK_DATABASE_NAME}
+      POSTGRES_USER: ${KEYCLOAK_DATABASE_USER}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DATABASE_PASSWORD}
+      PGDATA: /data/postgres
+    volumes:
+      - keycloak-db:/data/postgres
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - keycloak-db-network
+    labels:
+      - "traefik.enable=false"  # internal service
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "${KEYCLOAK_DATABASE_NAME}", "-U", "${KEYCLOAK_DATABASE_USER}" ]
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  keycloak:
+    image: keycloak/keycloak
+    restart: always
+    command: start
+    environment:
+      # http(s)
+      KC_HTTP_ENABLED: "true"
+      # health endpoint
+      KC_HEALTH_ENABLED: true
+      # hostname
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
+      # proxy
+      KC_PROXY_ADDRESS_FORWARDING: "true"
+      KC_PROXY_HEADERS: "xforwarded"
+      # database
+      KC_DB: postgres
+      KC_DB_URL_HOST: keycloak-db
+      KC_DB_URL_DATABASE: ${KEYCLOAK_DATABASE_NAME}
+      KC_DB_USERNAME: ${KEYCLOAK_DATABASE_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DATABASE_PASSWORD}
+      KC_DB_SCHEMA: public
+      # admin account
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # log
+      KC_LOG_LEVEL: info
+    healthcheck:
+      test: 
+      - "CMD-SHELL"
+      - |
+        exec 3<>/dev/tcp/localhost/9000 &&
+        echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+        cat <&3 | tee /tmp/healthcheck.log | grep -q '200 OK'
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    networks:
+      - traefik-network  # shared with traefik
+      - keycloak-db-network  # shared with keycloak database
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      - "traefik.enable=true"
+      # traefik router
+      - "traefik.http.routers.keycloak.rule=Host(`${KEYCLOAK_HOSTNAME}`)"
+      - "traefik.http.routers.keycloak.service=keycloak"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.middlewares=compresstraefik"
+      - "traefik.http.routers.keycloak.tls=true"
+      - "traefik.http.routers.keycloak.tls.certresolver=cloudflare"
+      # keycloak service
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+      - "traefik.http.services.keycloak.loadbalancer.passhostheader=true"
+      # keycloak middleware
+      - "traefik.http.middlewares.compresstraefik.compress=true"
+      # docker network
+      - "traefik.docker.network=traefik-network"
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
