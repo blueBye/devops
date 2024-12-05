@@ -29,40 +29,12 @@ cd devops-boilerplate
 ```
 
 ### 2. Configure Environment Variables
-Create a `.env` file in the project root and add the following configuration:
+Create a `.env` file in the project root using the `.example.evn` and update the required fields.
 
-```env
-# General
-HOST_NAME=[your domain]
-
-# Traefik
-TRAEFIK_IMAGE_TAG=traefik:latest
-TRAEFIK_HOSTNAME=traefik.[your domain]
-TRAEFIK_LOG_LEVEL=WARN
-TRAEFIK_LOG_FORMAT=json
-TRAEFIK_ACCESS_LOG_FORMAT=json
-TRAEFIK_BASIC_AUTH="admin:$$apr1$$/OvXXPqx$$ASwHg084Hxo6MotyV4pnI0"  # admin123 (use htpasswd to generate a new one)
-
-# Cloudflare
-CF_API_EMAIL=[email account used for Cloudflare]
-CF_DNS_API_TOKEN=[API token from Cloudflare with DNS edit permissions]
-
-# Gitea
-GITEA_POSTGRES_IMAGE_TAG=postgres:17.0-alpine3.20
-GITEA_IMAGE_TAG=gitea/gitea:1.22.3
-GITEA_DB_NAME=giteadb
-GITEA_DB_USER=giteadbuser
-GITEA_DB_PASSWORD=[secure password 1]
-GITEA_ADMIN_USERNAME=giteaadmin
-GITEA_ADMIN_PASSWORD=[secure password 2]
-GITEA_ADMIN_EMAIL=giteaadmin@[your domain]
-GITEA_URL=https://gitea.[your domain]
-GITEA_HOSTNAME=gitea.[your domain]
-GITEA_SHELL_SSH_PORT=2222
-GITEA_DATA_PATH=/bitnami/gitea
-```
-
-Replace `[your domain]`, `[email account used for Cloudflare]`, `[API token from Cloudflare]`, `[secure password 1]` and `[secure password 2]` with appropriate values.
+**Note:**: Update usernames and passwords in `.env` file. other things you have to change are marked using `<instruction>` format in the file.
+**Note:**: To check redis and postgres connection, use code sample from `Note.md`.
+**Note:**: As of Dec. 2024, I had to use python 3.13 on Linux to test the posgres. Python's postgre package might be updated to work on Windows by the time you are reading this note.
+**Note:** update you `/etc/host` (Linux) or `C:\Windows\system32\drivers\etc\hosts` (Windows) for local test.
 
 ---
 
