@@ -1,3 +1,4 @@
 .env
 gitea-runner/data/
 .idea/
+data/

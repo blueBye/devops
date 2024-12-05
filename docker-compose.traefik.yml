@@ -8,6 +8,9 @@ services:
       - 80:80  # web
       - 443:443  # websecure
       - "${GITEA_SHELL_SSH_PORT}:${GITEA_SHELL_SSH_PORT}"  # gitea
+      - "${TRAEFIK_METRICS_PORT}:${TRAEFIK_METRICS_PORT}"
+      - "${POSTGRESQL_PORT}:${POSTGRESQL_PORT}"
+      - "${REDIS_PORT}:${REDIS_PORT}"
     networks:
       - traefik-network
     environment:
@@ -24,6 +27,9 @@ services:
       # metrics
       - "--metrics.prometheus=true"
       - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+      - "--metrics.prometheus.addEntryPointsLabels=true"
+      - "--metrics.prometheus.addServicesLabels=true"
+      - "--metrics.prometheus.entryPoint=metrics"
       # logs
       - "--log.level=${TRAEFIK_LOG_LEVEL}"
       - "--log.format=${TRAEFIK_LOG_FORMAT}"
@@ -45,6 +51,12 @@ services:
       - "--entryPoints.websecure.address=:443"
       # gitea ssh entrypoint
       - "--entryPoints.ssh.address=:${GITEA_SHELL_SSH_PORT}"
+      # metrics entrypoint
+      - "--entryPoints.metrics.address=:${TRAEFIK_METRICS_PORT}"
+      # postgres entrypoint
+      - "--entryPoints.postgres.address=:${POSTGRESQL_PORT}"
+      # redis entrypoint
+      - "--entrypoints.redis.address=:${REDIS_PORT}"
       # cloudflare certificate resolver
       - "--certificatesresolvers.cloudflare.acme.email=${CF_API_EMAIL}"
       - "--certificatesresolvers.cloudflare.acme.storage=/etc/traefik/acme/acme.json"

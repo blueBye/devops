@@ -23,6 +23,7 @@ volumes:
   keycloak-db:
   grafana-data:
   grafana-db:
+  postgres:
 
 services:
   traefik:
@@ -30,54 +31,12 @@ services:
       file: docker-compose.traefik.yml
       service: traefik
 
-  grafana:
+  redis:
     extends:
-      file: docker-compose.grafana.yml
-      service: grafana
+      file: docker-compose.redis.yml
+      service: redis
 
-  grafana-db:
+  postgres:
     extends:
-      file: docker-compose.grafana.yml
-      service: grafana-db
-
-  keycloak:
-    extends:
-      file: docker-compose.keycloak.yml
-      service: keycloak
-
-  keycloak-db:
-    extends:
-      file: docker-compose.keycloak.yml
-      service: keycloak-db
-
-  # gitea:
-  #   extends:
-  #     file: docker-compose.gitea.yml
-  #     service: gitea
-
-  # gitea-db:
-  #   extends:
-  #     file: docker-compose.gitea.yml
-  #     service: gitea-db
-
-  # gitea-runner:
-  #   extends:
-  #     file: docker-compose.gitea-runner.yml
-  #     service: gitea-runner
-
-  # traefik-proxmox:
-  #   extends:
-  #     file: docker-compose.traefik-proxmox.yml
-  #     service: traefik  
-
-  # consul:
-  #   image: bitnami/consul:latest
-  #   networks:
-  #     - consul-network
-  #   ports:
-  #     - '8300:8300'
-  #     - '8301:8301'
-  #     - '8301:8301/udp'
-  #     - '8500:8500'
-  #     - '8600:8600'
-  #     - '8600:8600/udp'
+      file: docker-compose.postgres.yml
+      service: postgres

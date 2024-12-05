@@ -1,0 +1,28 @@
+services:
+  redis:
+    image: ${REDIS_IMAGE_TAG}
+    restart: always
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=${REDIS}
+      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - traefik-network
+    healthcheck:
+      test: [ 'CMD', 'redis-cli', 'ping' ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      # routers
+      - "traefik.tcp.routers.redis.rule=HostSNI(`${REDIS_HOSTNAME}`)"
+      - "traefik.tcp.routers.redis.entryPoints=redis"
+      - "traefik.tcp.routers.redis.service=redis"
+      - "traefik.http.routers.keycloak.tls=true"
+      - "traefik.tcp.routers.redis.tls.certresolver=cloudflare"
+      # services (needed for TCP)
+      - "traefik.tcp.services.redis.loadbalancer.server.port=${REDIS_PORT}"
+      # docker network
+      - "traefik.docker.network=traefik-network"
