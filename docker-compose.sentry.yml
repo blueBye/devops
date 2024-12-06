@@ -1,0 +1,107 @@
+version: "3.8"
+
+services:
+  sentry-redis:
+    image: redis
+    restart: unless-stopped
+    networks:
+      - sentry-network
+    volumes:
+      - sentry-redis-data:/data
+    labels:
+      - "traefik.enable=false"  # internal service
+
+  sentry-postgres:
+    image: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sentry
+      POSTGRES_USER: sentry
+      POSTGRES_PASSWORD: secret
+      PGDATA: /data/postgres
+    volumes:
+      - sentry-postgres-data:/data/postgres
+    networks:
+      - sentry-network
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "sentry", "-U", "sentry" ]
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  sentry-web:
+    image: sentry
+    restart: unless-stopped
+    environment:
+      SENTRY_SECRET_KEY: ${SENTRY_SECRET_KEY}
+      SENTRY_POSTGRES_HOST: sentry-postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: secret
+      SENTRY_REDIS_HOST: sentry-redis
+      SENTRY_REDIS_PORT: 6379
+      SENTRY_MEMCACHED_HOST: sentry-redis
+      SENTRY_MEMCACHED_PORT: 11211
+      SENTRY_SERVER_EMAIL: root@localhost
+      # Other Sentry configurations...
+    networks:
+      - sentry-network
+    ports:
+      - "8080:9000"
+    depends_on:
+      - sentry-postgres
+      - sentry-redis
+    labels:
+      - "traefik.enable=false"  # internal service
+
+  sentry-cron:
+    image: sentry
+    restart: unless-stopped
+    environment:
+      SENTRY_SECRET_KEY: ${SENTRY_SECRET_KEY}
+      SENTRY_POSTGRES_HOST: sentry-postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: secret
+      SENTRY_REDIS_HOST: sentry-redis
+      SENTRY_REDIS_PORT: 6379
+    command: sentry run cron
+    networks:
+      - sentry-network
+    depends_on:
+      - sentry-postgres
+      - sentry-redis
+    labels:
+      - "traefik.enable=false"  # internal service
+
+  sentry-worker-1:
+    image: sentry
+    restart: unless-stopped
+    environment:
+      SENTRY_SECRET_KEY: ${SENTRY_SECRET_KEY}
+      SENTRY_POSTGRES_HOST: sentry-postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: secret
+      SENTRY_REDIS_HOST: sentry-redis
+      SENTRY_REDIS_PORT: 6379
+    command: sentry run worker
+    networks:
+      - sentry-network
+    depends_on:
+      - sentry-postgres
+      - sentry-redis
+    labels:
+      - "traefik.enable=false"  # internal service
+
+volumes:
+  sentry-redis-data:
+  sentry-postgres-data:
+
+networks:
+  sentry-network:
+    driver: bridge
