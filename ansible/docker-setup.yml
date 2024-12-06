@@ -1,0 +1,108 @@
+---
+- name: Automate server setup
+  hosts: all
+  become: true  # Run tasks as root
+  vars:
+    docker_gpg_url: "https://download.docker.com/linux/ubuntu/gpg"
+    docker_repo_url: "https://download.docker.com/linux/ubuntu"
+    docker_compose_url: "https://github.com/docker/compose/releases/download/v2.31.0/docker-compose-linux-x86_64"
+    compose_version: "v2.31.0"
+
+  tasks:
+    - name: Set Ubuntu mirror and DNS
+      block:
+        - name: Configure apt sources.list with custom and security mirrors
+          template:
+            src: templates/sources.list.j2
+            dest: /etc/apt/sources.list
+            owner: root
+            group: root
+            mode: '0644'
+
+        - name: Configure DNS servers in Netplan
+          blockinfile:
+            path: /etc/netplan/50-cloud-init.yaml
+            marker: ""
+            block: |
+              network:
+                  version: 2
+                  ethernets:
+                      eth0:
+                          dhcp4: true
+                          match:
+                              macaddress: fa:16:3e:65:ab:58
+                          mtu: 1500
+                          set-name: eth0
+                          nameservers:
+                              addresses:
+                                  - 10.202.10.202
+                                  - 10.202.10.102
+
+        - name: Fix permissions on the netplan configuration file
+          ansible.builtin.file:
+            path: /etc/netplan/50-cloud-init.yaml
+            owner: root
+            group: root
+            mode: '0600'
+          become: true
+
+        - name: Apply Netplan configuration
+          command: netplan apply
+          become: true
+
+    - name: Update apt repositories
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+
+    - name: Add Docker GPG key
+      ansible.builtin.shell: |
+        curl -fsSL {{ docker_gpg_url }} | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/docker-archive-keyring.gpg
+
+    - name: Add Docker repository
+      ansible.builtin.shell: |
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] {{ docker_repo_url }} $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+      args:
+        creates: /etc/apt/sources.list.d/docker.list
+
+    - name: Update apt repositories again after adding Docker repo
+      apt:
+        update_cache: yes
+
+    - name: Install Docker CE
+      apt:
+        name: docker-ce
+        state: present
+
+    - name: Add user to Docker group
+      user:
+        name: "{{ ansible_user }}"
+        group: docker
+        append: yes
+
+    - name: Create Docker CLI plugins directory
+      file:
+        path: "{{ ansible_env.HOME }}/.docker/cli-plugins"
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker Compose
+      get_url:
+        url: "{{ docker_compose_url }}"
+        dest: "{{ ansible_env.HOME }}/.docker/cli-plugins/docker-compose"
+        mode: '0755'
+
+    - name: Ensure Docker Compose is executable
+      file:
+        path: "{{ ansible_env.HOME }}/.docker/cli-plugins/docker-compose"
+        mode: '0755'

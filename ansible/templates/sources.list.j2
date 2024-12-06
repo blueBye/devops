@@ -1,0 +1,8 @@
+# Main Ubuntu repository
+deb https://ir.ubuntu.sindad.cloud/ubuntu/ {{ ansible_distribution_release }} main restricted universe multiverse
+
+# Security updates
+deb http://security.ubuntu.com/ubuntu {{ ansible_distribution_release }}-security main restricted universe multiverse
+
+# Updates
+deb https://ir.ubuntu.sindad.cloud/ubuntu/ {{ ansible_distribution_release }}-updates main restricted universe multiverse
